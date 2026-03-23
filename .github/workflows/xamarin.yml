@@ -1,10 +1,11 @@
 name: Build Xamarin app
 #https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-xamarin-applications
 on:
-  push:
-    branches: [ master, main, develop ]
-  pull_request:
-    branches: [ master, main, develop ]
+  workflow_dispatch:
+#  push:
+#    branches: [ master, main, develop ]
+#  pull_request:
+#    branches: [ master, main, develop ]
 
 jobs:
   build:
