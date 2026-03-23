@@ -4,11 +4,12 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $false
 
 $pinnedRefs = @{
   "references/AvaloniaGif" = @{
-    Type = "branch"
-    Ref = "Avalonia-11.0"
+    Type = "commit"
+    Ref = "e3d8985151d2cea5fc8de4ca5d459759a44bb0b7"
     RequiredPath = "AvaloniaGif/AvaloniaGif.csproj"
   }
   "references/ArchiSteamFarm" = @{
@@ -38,9 +39,34 @@ function Invoke-Git {
     [string[]]$Arguments
   )
 
-  & git @Arguments
-  if ($LASTEXITCODE -ne 0) {
-    throw "git $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+  $psi = [System.Diagnostics.ProcessStartInfo]::new()
+  $psi.FileName = "git"
+  foreach ($argument in $Arguments) {
+    [void]$psi.ArgumentList.Add($argument)
+  }
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.CreateNoWindow = $true
+
+  $process = [System.Diagnostics.Process]::new()
+  $process.StartInfo = $psi
+
+  [void]$process.Start()
+  $stdout = $process.StandardOutput.ReadToEnd()
+  $stderr = $process.StandardError.ReadToEnd()
+  $process.WaitForExit()
+
+  if ($stdout) {
+    Write-Host $stdout.TrimEnd()
+  }
+
+  if ($stderr) {
+    Write-Host $stderr.TrimEnd()
+  }
+
+  if ($process.ExitCode -ne 0) {
+    throw "git $($Arguments -join ' ') failed with exit code $($process.ExitCode)"
   }
 }
 
@@ -89,6 +115,65 @@ function Clone-PinnedRepo {
     }
     default {
       throw "Unsupported pin type '$($Pin.Type)' for '$Path'"
+    }
+  }
+}
+
+function Get-GitHeadRevision {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path
+  )
+
+  if (-not (Test-Path (Join-Path $Path ".git"))) {
+    return $null
+  }
+
+  try {
+    $revision = & git -C $Path rev-parse HEAD 2>$null
+    if ($LASTEXITCODE -ne 0) {
+      return $null
+    }
+
+    return $revision.Trim()
+  }
+  catch {
+    return $null
+  }
+}
+
+function Sync-PinnedRepo {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Url,
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [hashtable]$Pin
+  )
+
+  if (-not (Test-Path $Path)) {
+    Clone-PinnedRepo -Url $Url -Path $Path -Pin $Pin
+    return
+  }
+
+  switch ($Pin.Type) {
+    "commit" {
+      $headRevision = Get-GitHeadRevision -Path $Path
+      if ($headRevision -eq $Pin.Ref) {
+        return
+      }
+
+      if (-not (Test-Path (Join-Path $Path ".git"))) {
+        throw "Pinned repository '$Path' exists but is not a git checkout."
+      }
+
+      Write-Host "Updating $Path to commit $($Pin.Ref)"
+      Invoke-Git -Arguments @("-C", $Path, "fetch", "--depth", "1", "origin", $Pin.Ref)
+      Invoke-Git -Arguments @("-C", $Path, "checkout", "--detach", "FETCH_HEAD")
+    }
+    default {
+      return
     }
   }
 }
@@ -147,19 +232,25 @@ try {
       }
     }
 
-    if (Test-Path $repo.path) {
-      Write-Host "Using existing $($repo.path)"
-      continue
-    }
-
     if ($pin) {
-      Write-Host "Cloning $($repo.url) -> $($repo.path) at $($pin.Type) $($pin.Ref)"
-      Clone-PinnedRepo -Url $repo.url -Path $repo.path -Pin $pin
+      if (Test-Path $repo.path) {
+        Write-Host "Validating pinned dependency $($repo.path)"
+      }
+      else {
+        Write-Host "Cloning $($repo.url) -> $($repo.path) at $($pin.Type) $($pin.Ref)"
+      }
+
+      Sync-PinnedRepo -Url $repo.url -Path $repo.path -Pin $pin
 
       $requiredPath = Join-Path $repo.path $pin.RequiredPath
       if (-not (Test-Path $requiredPath)) {
         throw "Pinned checkout for '$($repo.path)' is missing '$requiredPath'"
       }
+      continue
+    }
+
+    if (Test-Path $repo.path) {
+      Write-Host "Using existing $($repo.path)"
       continue
     }
 

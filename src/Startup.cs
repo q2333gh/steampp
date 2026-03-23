@@ -234,7 +234,8 @@ namespace System.Application.UI
 #if !MAUI
             services.AddMSAppCenterApplicationSettings();
 #endif
-            services.AddJumpListService();
+            // Temporarily disabled while the Windows main build is kept on the .NET 6 / 19041.26 toolchain.
+            // services.AddJumpListService();
 #endif
 
             // 添加日志实现

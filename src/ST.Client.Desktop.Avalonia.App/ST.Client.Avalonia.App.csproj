@@ -54,7 +54,6 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
     <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
-    <WindowsSdkPackageVersion>10.0.19041.24</WindowsSdkPackageVersion>
     <!-- 注意：RuntimeIdentifier win-x86 会导致亚克力效果会丢失 -->
     <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
     <UseWindowsForms>false</UseWindowsForms>
@@ -126,7 +125,8 @@
     <ProjectReference Include="..\Avalonia.Native\Avalonia.Native.csproj" />
     <ProjectReference Include="..\ST.Client.Desktop.Windows\ST.Client.Windows.csproj" />
     <ProjectReference Include="..\ST.Client.AppCenter.Avalonia\ST.Client.AppCenter.Avalonia.csproj" />
-    <ProjectReference Include="..\ST.Client.JumpList.Avalonia\ST.Client.JumpList.Avalonia.csproj" />
+    <!-- Temporarily disabled to keep the Windows main build on the .NET 6 / 19041.26 toolchain. -->
+    <!--<ProjectReference Include="..\ST.Client.JumpList.Avalonia\ST.Client.JumpList.Avalonia.csproj" />-->
     <ProjectReference Include="..\ST.Client.Windows.ScheduledTasks\ST.Client.Windows.ScheduledTasks.csproj" />
     <!--<None Include="..\..\references\7z.dll" Condition=" '$(Platform)' != 'x86' And '$(Platform)' != 'ARM64' ">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -210,4 +210,6 @@
   <ItemGroup>
     <PackageReference Include="StyleCop.Analyzers" PrivateAssets="All" />
   </ItemGroup>
+
+  <Import Project="..\..\WindowsPlatform.props" />
 </Project>
