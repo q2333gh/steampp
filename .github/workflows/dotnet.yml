@@ -62,7 +62,7 @@ jobs:
       run: dotnet --info
 
     - name: Checkout Credentials repository
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/checkout@v3
       with:
         repository: SteamTools-Team/Credentials
@@ -70,7 +70,7 @@ jobs:
         path: ./Credentials
 
     - name: Copy pfx and snk To Source
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       run: |
         copy ".\Credentials\*.pfx" .
         copy ".\Credentials\*.snk" .
@@ -117,16 +117,16 @@ jobs:
         path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\**
 
     - name: Build ST.Tools.Publish Release
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       run: dotnet build ./src/ST.Tools.Publish/ST.Tools.Publish.csproj -c Release
 
     - name: Build ${{ matrix.configuration }} & Package All
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       shell: pwsh
       run: .\packaging\build.ps1 -configuration ${{ matrix.configuration }}
 
     - name: All Package
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       shell: pwsh
       run: |
         $dev = $(if ('${{ matrix.configuration }}' -eq 'Debug') {"-dev"})
@@ -137,7 +137,7 @@ jobs:
 
     - name: Upload fd-win-x64 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x64_fde_${{ env.GITHUB_SHA_SHORT }}'
@@ -145,7 +145,7 @@ jobs:
 
     - name: Upload win-x64 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x64_${{ env.GITHUB_SHA_SHORT }}'
@@ -153,7 +153,7 @@ jobs:
 
     - name: Upload fd-win-x86 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x86_fde_${{ env.GITHUB_SHA_SHORT }}'
@@ -161,7 +161,7 @@ jobs:
 
     - name: Upload win-x86 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x86_${{ env.GITHUB_SHA_SHORT }}'
@@ -169,7 +169,7 @@ jobs:
 
     - name: Upload macos-x64 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_macos_x64_${{ env.GITHUB_SHA_SHORT }}'
@@ -177,7 +177,7 @@ jobs:
         
     - name: Upload macos-arm64 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_macos_arm64_${{ env.GITHUB_SHA_SHORT }}'
@@ -185,7 +185,7 @@ jobs:
 
     - name: Upload linux-x64 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_linux_x64_${{ env.GITHUB_SHA_SHORT }}'
@@ -193,7 +193,7 @@ jobs:
 
     - name: Upload linux-arm64 App ${{ matrix.configuration }}
       continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' && secrets.REPO_TOKEN != '' }}
+      if: ${{ false }}
       uses: actions/upload-artifact@v4
       with:
         name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_linux_arm64_${{ env.GITHUB_SHA_SHORT }}'
