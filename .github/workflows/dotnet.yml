@@ -61,6 +61,9 @@ jobs:
     - name: Verify dotnet info
       run: dotnet --info
 
+    - name: Ensure local NuGet source exists
+      run: New-Item -ItemType Directory -Force -Path .\references\NuGetPackages | Out-Null
+
     - name: Checkout Credentials repository
       if: ${{ false }}
       uses: actions/checkout@v3
