@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        configuration: [ Debug, Release ]
+        configuration: [ Release ]
 #        os: [ windows-latest, macOS-latest, ubuntu-latest ]
         os: [ windows-latest ]
       # rid: [ fd-win-x64, win-x64, osx-x64, linux-x64,linux-arm64 ]
@@ -30,44 +30,7 @@ jobs:
 
     - name: Materialize external source dependencies
       shell: pwsh
-      run: |
-        $content = Get-Content .gitmodules
-        $repos = @()
-        $current = $null
-
-        foreach ($line in $content) {
-          if ($line -match '^\[submodule "(.*)"\]$') {
-            if ($null -ne $current -and $current.path -and $current.url) {
-              $repos += [PSCustomObject]$current
-            }
-            $current = @{ name = $Matches[1]; path = $null; url = $null }
-            continue
-          }
-
-          if ($null -eq $current) {
-            continue
-          }
-
-          if ($line -match '^\s*path = (.+)$') {
-            $current.path = $Matches[1]
-            continue
-          }
-
-          if ($line -match '^\s*url = (.+)$') {
-            $current.url = $Matches[1]
-          }
-        }
-
-        if ($null -ne $current -and $current.path -and $current.url) {
-          $repos += [PSCustomObject]$current
-        }
-
-        foreach ($repo in $repos) {
-          if (-not (Test-Path $repo.path)) {
-            Write-Host "Cloning $($repo.url) -> $($repo.path)"
-            git clone --depth 1 $repo.url $repo.path
-          }
-        }
+      run: .\.github\scripts\materialize-external-deps.ps1
 
     - name: Setup .NET 6
       uses: actions/setup-dotnet@v3.0.2
@@ -122,7 +85,7 @@ jobs:
 
     - name: dotnet restore main app
       if: matrix.os == 'windows-latest'
-      run: dotnet restore ./src/ST.Client.Desktop.Avalonia.App/ST.Client.Avalonia.App.csproj
+      run: dotnet restore ./src/ST.Client.Desktop.Avalonia.App/ST.Client.Avalonia.App.csproj -p:Configuration=${{ matrix.configuration }}
       
     - name: dotnet restore SteamToolsV2+.Linux.sln
       if: matrix.os == 'ubuntu-latest'

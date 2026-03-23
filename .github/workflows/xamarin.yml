@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        configuration: [ Debug, Release ]
+        configuration: [ Release ]
         os: [ macOS-latest ]
 
     steps:
@@ -25,44 +25,7 @@ jobs:
 
     - name: Materialize external source dependencies
       shell: pwsh
-      run: |
-        $content = Get-Content .gitmodules
-        $repos = @()
-        $current = $null
-
-        foreach ($line in $content) {
-          if ($line -match '^\[submodule "(.*)"\]$') {
-            if ($null -ne $current -and $current.path -and $current.url) {
-              $repos += [PSCustomObject]$current
-            }
-            $current = @{ name = $Matches[1]; path = $null; url = $null }
-            continue
-          }
-
-          if ($null -eq $current) {
-            continue
-          }
-
-          if ($line -match '^\s*path = (.+)$') {
-            $current.path = $Matches[1]
-            continue
-          }
-
-          if ($line -match '^\s*url = (.+)$') {
-            $current.url = $Matches[1]
-          }
-        }
-
-        if ($null -ne $current -and $current.path -and $current.url) {
-          $repos += [PSCustomObject]$current
-        }
-
-        foreach ($repo in $repos) {
-          if (-not (Test-Path $repo.path)) {
-            Write-Host "Cloning $($repo.url) -> $($repo.path)"
-            git clone --depth 1 $repo.url $repo.path
-          }
-        }
+      run: .\.github\scripts\materialize-external-deps.ps1
 
     - name: Setup .NET 6
       uses: actions/setup-dotnet@v3.0.2
@@ -86,10 +49,14 @@ jobs:
 #      run: dotnet workload install maui
 
     - name: Verify dotnet info
+      shell: pwsh
       run: |
-           nuget help 
-           dotnet --info 
-           msbuild -version
+           dotnet --info
+           if (Get-Command msbuild -ErrorAction SilentlyContinue) {
+             msbuild -version
+           } else {
+             Write-Host "msbuild is not on PATH yet"
+           }
 
 #    - name: Install dependencies
 #      run: nuget restore ./SteamToolsV2+.sln
