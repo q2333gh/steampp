@@ -41,6 +41,9 @@ static partial class
 
         public void InitVisualStudioAppCenterSDK()
         {
+            if (IApplication.SkipAppCenterInit)
+                return;
+
 #if !MAUI && (WINDOWS || XAMARIN_MAC || __MOBILE__ || __ANDROID__ || __IOS__ || MACCATALYST || IOS)
 #pragma warning disable IDE0079 // 请删除不必要的忽略
 #pragma warning disable CA1416 // 验证平台兼容性

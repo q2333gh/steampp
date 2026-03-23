@@ -232,7 +232,10 @@ namespace System.Application.UI
 #endif
 #if WINDOWS
 #if !MAUI
-            services.AddMSAppCenterApplicationSettings();
+            if (!IApplication.SkipAppCenterInit)
+            {
+                services.AddMSAppCenterApplicationSettings();
+            }
 #endif
             // Temporarily disabled while the Windows main build is kept on the .NET 6 / 19041.26 toolchain.
             // services.AddJumpListService();
@@ -299,7 +302,10 @@ namespace System.Application.UI
 #endif
                 // 添加 Toast 提示服务
 #if !DEBUG
-                services.AddStartupToastIntercept();
+                if (!IApplication.SkipStartupBackground)
+                {
+                    services.AddStartupToastIntercept();
+                }
 #endif
                 services.TryAddToast();
 
@@ -385,8 +391,11 @@ namespace System.Application.UI
             if (options.HasHttpProxy)
             {
                 // 通用 Http 代理服务
-                services.AddReverseProxyService();
-                if (isTrace) StartWatchTrace.Record("DI.D.HttpProxy");
+                if (!IApplication.SkipReverseProxyStartup)
+                {
+                    services.AddReverseProxyService();
+                    if (isTrace) StartWatchTrace.Record("DI.D.HttpProxy");
+                }
             }
 #endif
 #if !CONSOLEAPP
@@ -611,24 +620,30 @@ namespace System.Application.UI
             host.InitVisualStudioAppCenterSDK();
             if (isTrace) StartWatchTrace.Record("AppCenter");
 
-            StartupToastIntercept.OnStartuped();
+            if (!IApplication.SkipStartupBackground)
+            {
+                StartupToastIntercept.OnStartuped();
+            }
 
             if (host.IsMainProcess)
             {
-                OnStartupInMainProcessAsyncVoid();
-                async void OnStartupInMainProcessAsyncVoid()
+                if (!IApplication.SkipStartupBackground)
                 {
-                    await Task.Run(() =>
+                    OnStartupInMainProcessAsyncVoid();
+                    async void OnStartupInMainProcessAsyncVoid()
                     {
-                        ActiveUserPost(host, ActiveUserType.OnStartup);
-                        if (GeneralSettings.IsAutoCheckUpdate.Value)
+                        await Task.Run(() =>
                         {
-                            IApplicationUpdateService.Instance.CheckUpdate(showIsExistUpdateFalse: false);
-                        }
-                    });
-                }
+                            ActiveUserPost(host, ActiveUserType.OnStartup);
+                            if (GeneralSettings.IsAutoCheckUpdate.Value)
+                            {
+                                IApplicationUpdateService.Instance.CheckUpdate(showIsExistUpdateFalse: false);
+                            }
+                        });
+                    }
 
-                INotificationService.ILifeCycle.Instance?.OnStartup();
+                    INotificationService.ILifeCycle.Instance?.OnStartup();
+                }
             }
         }
 

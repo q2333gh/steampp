@@ -19,6 +19,11 @@ partial class App
 
     static void InitWebView2()
     {
+        if (IApplication.SkipWebView2Init)
+        {
+            return;
+        }
+
         if (WebView2.IsSupported)
         {
             WebView2.DefaultCreationProperties = new()
