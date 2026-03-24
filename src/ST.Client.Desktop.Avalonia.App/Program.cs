@@ -206,7 +206,9 @@ namespace System.Application.UI
                 .LogToTrace()
                 .UseReactiveUI();
 
-            var useGpu = !IApplication.DisableGPU && GeneralSettings.UseGPURendering.Value;
+            var useGpu = !IApplication.DisableGPU &&
+                !IApplication.ForceDisableGpuRendering &&
+                GeneralSettings.UseGPURendering.Value;
 
 #if MAC
             builder.With(new AvaloniaNativePlatformOptions
@@ -219,7 +221,9 @@ namespace System.Application.UI
                 UseGpu = useGpu
             });
 #elif WINDOWS
-            var useWgl = IApplication.UseWgl || GeneralSettings.UseWgl.Value;
+            var useWgl = IApplication.UseWgl ||
+                IApplication.ForceUseWgl ||
+                GeneralSettings.UseWgl.Value;
             var options = new Win32PlatformOptions
             {
                 UseWgl = useWgl,

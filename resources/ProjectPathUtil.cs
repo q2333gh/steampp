@@ -67,7 +67,7 @@ public static partial class ProjectPathUtil
     static ProjectPathUtil()
     {
         projPath = GetProjectPath();
-        if (!Directory.Exists(Path.Combine(projPath, ProjectDir_AvaloniaApp)))
+        if (!Directory.Exists(Path.Combine(projPath, "src", ProjectDir_AvaloniaApp)))
         {
             projPath = GetProjectPathByServerTool();
         }

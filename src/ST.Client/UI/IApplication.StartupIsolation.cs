@@ -25,5 +25,9 @@ namespace System.Application.UI
         public static bool SkipStartupBackground => GetStartupIsolationFlag("STEAMPP_SKIP_STARTUP_BACKGROUND");
 
         public static bool SkipReverseProxyStartup => GetStartupIsolationFlag("STEAMPP_SKIP_REVERSE_PROXY_STARTUP");
+
+        public static bool ForceDisableGpuRendering => GetStartupIsolationFlag("STEAMPP_DISABLE_GPU");
+
+        public static bool ForceUseWgl => GetStartupIsolationFlag("STEAMPP_USE_WGL");
     }
 }

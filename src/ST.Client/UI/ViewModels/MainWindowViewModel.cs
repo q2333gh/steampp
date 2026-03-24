@@ -139,7 +139,7 @@ namespace System.Application.UI.ViewModels
                 {
                     Task.Run(async () =>
                     {
-                        if (R.IsChineseSimplified)
+                        if (R.IsChineseSimplified && !IApplication.SkipReverseProxyStartup)
                         {
                             await ProxyService.Current.Initialize();
                         }

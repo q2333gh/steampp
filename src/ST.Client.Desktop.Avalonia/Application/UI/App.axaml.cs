@@ -217,7 +217,10 @@ namespace System.Application.UI
                         #region 主窗口启动时加载的资源
 #if !UI_DEMO
                         compositeDisposable.Add(SettingsHost.Save);
-                        compositeDisposable.Add(ProxyService.Current.Exit);
+                        if (!IApplication.SkipReverseProxyStartup)
+                        {
+                            compositeDisposable.Add(ProxyService.Current.Exit);
+                        }
                         compositeDisposable.Add(SteamConnectService.Current.Dispose);
                         compositeDisposable.Add(ASFService.Current.StopASF);
 #pragma warning disable CA1416 // 验证平台兼容性
@@ -311,6 +314,14 @@ namespace System.Application.UI
             if (ProgramHost.IsMainProcess)
             {
 #pragma warning disable CA1416 // 验证平台兼容性
+                if (IApplication.SkipNotifyIconInit)
+                {
+                    NotifyIconHelper.Dispoe();
+                    IViewModelManager.Instance.DispoeTaskBarWindowViewModel();
+                    desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+                    return;
+                }
+
                 StartupOptions.Value.HasNotifyIcon = GeneralSettings.IsEnableTrayIcon.Value;
 #pragma warning disable CA1416 // 验证平台兼容性
 

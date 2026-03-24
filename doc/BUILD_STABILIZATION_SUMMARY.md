@@ -281,7 +281,7 @@ The repo now supports a first-stage local Windows green package flow that does n
 
 Input directory:
 
-- `src/ST.Client.Desktop.Avalonia.App/bin/Release/net6.0-windows10.0.19041.0/win7-x64`
+- `src/ST.Client.Desktop.Avalonia.App/bin/Release/Publish/win-x64`
 
 Output directory:
 
@@ -297,17 +297,33 @@ What it does:
 
 - materializes pinned external dependencies
 - restores the main desktop app
-- builds the main desktop app in `Release`
+- publishes the main desktop app in `Release` using `win-x64.pubxml`
 - validates that the main executable and `Assets` directory exist
-- copies the build output into a clean staging directory
+- validates that satellite resource directories only include `en`, `zh-CN`, and `zh-Hans`
+- excludes `AppData` and `Cache` from the distributable zip so machine-local state is not shipped
+- copies the publish output into a clean staging directory under `WattToolkit-win-x64-green`
 - creates a user-facing Windows green zip package
 
 Current packaging boundaries:
 
 - Windows x64 only
-- based on the stable `build` output, not the full official publish chain
+- based on the local `publish/win-x64` output
 - no signing, installer generation, release metadata, or cloud publish steps
 - JumpList remains intentionally disabled in this package path
+
+Current smoke standard:
+
+- the app must stay alive for at least 30 seconds from the publish directory and from the extracted zip
+- there must be no new `.NET Runtime 1023`, `Application Error 1000`, or `Windows Error Reporting 1001` events for `Steam++.exe`
+- there must be no new `Steam++.exe.*.dmp` crash dump generated during the smoke run
+
+Startup isolation flags available for local crash triage:
+
+- `STEAMPP_SKIP_APPCENTER=1`
+- `STEAMPP_SKIP_NOTIFYICON=1`
+- `STEAMPP_SKIP_WEBVIEW2_INIT=1`
+- `STEAMPP_SKIP_STARTUP_BACKGROUND=1`
+- `STEAMPP_SKIP_REVERSE_PROXY_STARTUP=1`
 
 ## Notes
 
