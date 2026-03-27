@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
         submodules: recursive
@@ -79,7 +79,7 @@ jobs:
 
     - name: Checkout Credentials repository
       if: ${{ false }}
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
       with:
         repository: SteamTools-Team/Credentials
         token: ${{ secrets.REPO_TOKEN }}
