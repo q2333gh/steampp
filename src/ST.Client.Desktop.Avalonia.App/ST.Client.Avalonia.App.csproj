@@ -8,6 +8,7 @@
     <!--(SignAssembly)对此程序集进行签名会导致编译失败(CompileAvaloniaXamlTask)-->
     <RootNamespace>System.Application.UI</RootNamespace>
     <AssemblyName>Steam++</AssemblyName>
+    <AssemblyName Condition="'$(GITHUB_ACTIONS)' == 'true'">SteamPP</AssemblyName>
     <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
   </PropertyGroup>
 
