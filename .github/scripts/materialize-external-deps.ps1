@@ -40,10 +40,6 @@ $pinnedRefs = @{
     Type = "commit"
     Ref = "f6cbd3d421f298a06f866a21a18ed801eeae1056"
   }
-  "references/SevenZipSharp" = @{
-    Type = "commit"
-    Ref = "705a75a79b903f2128596f80b36f4b3d0e4b3494"
-  }
   "references/Steam4NET" = @{
     Type = "commit"
     Ref = "8dcff45ab4eb569173c48313ca241799a3b3aed5"
