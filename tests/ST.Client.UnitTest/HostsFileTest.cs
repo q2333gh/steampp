@@ -160,7 +160,7 @@ public class HostsFileTest
                     select (ip: line_split_array[0], domain: line_split_array[1], line: line_split_array[0] + ' ' + line_split_array[1]);
         var values = query.ToArray();
         var lines = query.Select(x => x.line).Distinct().ToArray();
-        return lines.Select(x => values.Reverse().FirstOrDefault(y => y.line == x)).Select(x => (x.ip, x.domain)).ToArray();
+        return lines.Select(x => ((IEnumerable<(string ip, string domain, string line)>)values).Reverse().FirstOrDefault(y => y.line == x)).Select(x => (x.ip, x.domain)).ToArray();
     }
 
     [Test]
