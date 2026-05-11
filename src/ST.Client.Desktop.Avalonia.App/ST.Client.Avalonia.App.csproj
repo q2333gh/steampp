@@ -54,7 +54,7 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
     <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
-    <WindowsSdkPackageVersion>10.0.19041.24</WindowsSdkPackageVersion>
+    <WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>
     <!-- 注意：RuntimeIdentifier win-x86 会导致亚克力效果会丢失 -->
     <RuntimeIdentifier>win7-x64</RuntimeIdentifier>
     <UseWindowsForms>false</UseWindowsForms>

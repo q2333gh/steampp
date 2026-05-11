@@ -15,7 +15,7 @@
     <RuntimeIdentifiers>win10-x64</RuntimeIdentifiers>
     <PlatformTarget>x64</PlatformTarget>
     <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
-    <WindowsSdkPackageVersion>10.0.19041.24</WindowsSdkPackageVersion>
+    <WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>
     <UseWindowsForms Condition="'$(Configuration)'=='Debug'">true</UseWindowsForms>
     <UseWPF>false</UseWPF>
   </PropertyGroup>

@@ -11,7 +11,7 @@
     <ApplicationIcon>..\ST.Client.Desktop.Avalonia\Application\UI\Assets\Icon.ico</ApplicationIcon>
     <ApplicationManifest>..\ST.Client.Desktop.Avalonia.App\Properties\app.manifest</ApplicationManifest>
     <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
-    <WindowsSdkPackageVersion>10.0.19041.24</WindowsSdkPackageVersion>
+    <WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>
     <UseWindowsForms>false</UseWindowsForms>
     <UseWPF>false</UseWPF>
     <Platforms>x86;x64;arm64</Platforms>
