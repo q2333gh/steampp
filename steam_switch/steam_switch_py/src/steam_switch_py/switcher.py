@@ -144,7 +144,11 @@ def start_steam(mode: str) -> None:
     args: list[str] = [exe]
     if mode == "offline":
         args.append("-offline")
-    _run(args)
+    # Steam is a long-running app; launch it detached so GUI flow can finish.
+    try:
+        subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError as exc:
+        raise SteamSwitchError(f"Failed to start Steam: {' '.join(args)}") from exc
 
 
 def login_new(mode: str) -> None:
