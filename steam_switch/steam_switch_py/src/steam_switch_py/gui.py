@@ -3,90 +3,113 @@ from __future__ import annotations
 import json
 import queue
 import threading
-import tkinter as tk
-from tkinter import messagebox, ttk
+import ctypes
 from pathlib import Path
+from typing import Any
 
-from .switcher import (
-    SteamSwitchError,
-    SteamUser,
-    list_users,
-    perform_login_new,
-    perform_select_account,
-)
+import dearpygui.dearpygui as dpg
+
+from .switcher import SteamUser, list_users, perform_login_new, perform_select_account
+
+
+def _enable_windows_dpi_awareness() -> None:
+    # Avoid blurry rendering on high-DPI displays.
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+        return
+    except Exception:
+        pass
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+
+def _get_windows_dpi_scale() -> float:
+    try:
+        dpi = ctypes.windll.user32.GetDpiForSystem()
+        if dpi and dpi > 0:
+            return max(1.0, min(2.5, dpi / 96.0))
+    except Exception:
+        pass
+    return 1.0
 
 
 class SteamSwitchGui:
-    def __init__(self, root: tk.Tk) -> None:
-        self.root = root
-        self.root.title("Steam Switch")
-        self.root.geometry("760x460")
-
+    def __init__(self) -> None:
         self._busy = False
         self._events: queue.Queue[tuple[str, object]] = queue.Queue()
-        self._action_buttons: list[ttk.Button] = []
-        self._note_controls: list[tk.Widget] = []
-        self._users: list[SteamUser] = []
         self._notes_file = Path(__file__).resolve().parent / "account_notes.json"
         self._notes = self._load_notes()
+        self._users: list[SteamUser] = []
+        self._interactive_items: list[int | str] = []
+        self._note_input_tags: dict[str, str] = {}
+        self._table_container_tag = "accounts_table_container"
+        self._status_tag = "status_text"
+        self._error_window_tag = "error_modal"
+        self._font_default: int | str | None = None
+        self._font_zh: int | str | None = None
+        self._dpi_scale = 1.0
 
-        self.status_var = tk.StringVar(value="Ready")
-
-        self._build_widgets()
-        self._poll_events()
+        self._build_ui()
+        self._set_status("Loading account list...")
         self._run_async(self._load_users)
 
-    def _build_widgets(self) -> None:
-        frame = ttk.Frame(self.root, padding=12)
-        frame.pack(fill=tk.BOTH, expand=True)
+    def _build_ui(self) -> None:
+        _enable_windows_dpi_awareness()
+        self._dpi_scale = _get_windows_dpi_scale()
+        dpg.create_context()
+        self._setup_fonts()
+        dpg.create_viewport(title="Steam Switch", width=self._s(1120), height=self._s(700))
 
-        top = ttk.Frame(frame)
-        top.pack(fill=tk.X)
+        with dpg.window(label="Steam Switch", tag="main_window"):
+            dpg.add_text("Steam Accounts")
+            dpg.add_spacer(height=self._s(2))
 
-        ttk.Label(top, text="Steam Accounts").pack(side=tk.LEFT)
+            with dpg.group(horizontal=True):
+                refresh_btn = dpg.add_button(label="Refresh List", callback=lambda: self.on_refresh())
+                login_new_btn = dpg.add_button(label="Login New", callback=lambda: self.on_login_new())
+                self._interactive_items.extend([refresh_btn, login_new_btn])
 
-        button_bar = ttk.Frame(frame)
-        button_bar.pack(fill=tk.X, pady=(10, 6))
+            dpg.add_spacer(height=self._s(6))
+            dpg.add_child_window(tag=self._table_container_tag, autosize_x=True, height=self._s(560), border=True)
+            dpg.add_spacer(height=self._s(4))
+            dpg.add_text("Ready", tag=self._status_tag)
 
-        self.btn_refresh = ttk.Button(button_bar, text="Refresh List", command=self.on_refresh)
-        self.btn_refresh.pack(side=tk.LEFT)
+        dpg.setup_dearpygui()
+        dpg.show_viewport()
+        dpg.set_primary_window("main_window", True)
 
-        self.btn_login_new = ttk.Button(button_bar, text="Login New", command=self.on_login_new)
-        self.btn_login_new.pack(side=tk.LEFT, padx=8)
+    def _setup_fonts(self) -> None:
+        consolas_candidates = [
+            "C:/Windows/Fonts/consola.ttf",
+            "C:/Windows/Fonts/consolab.ttf",
+        ]
+        zh_candidates = [
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/msyhbd.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+            "C:/Windows/Fonts/simsun.ttc",
+        ]
 
-        account_host = ttk.Frame(frame)
-        account_host.pack(fill=tk.BOTH, expand=True)
-        self.account_canvas = tk.Canvas(account_host, highlightthickness=0)
-        self.account_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.account_scroll = ttk.Scrollbar(account_host, orient=tk.VERTICAL, command=self.account_canvas.yview)
-        self.account_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.account_canvas.configure(yscrollcommand=self.account_scroll.set)
-        self.account_rows = ttk.Frame(self.account_canvas)
-        self.account_canvas_window = self.account_canvas.create_window((0, 0), window=self.account_rows, anchor="nw")
-        self.account_rows.bind(
-            "<Configure>",
-            lambda _evt: self.account_canvas.configure(scrollregion=self.account_canvas.bbox("all")),
-        )
-        self.account_canvas.bind(
-            "<Configure>",
-            lambda evt: self.account_canvas.itemconfigure(self.account_canvas_window, width=evt.width),
-        )
+        font_size = max(16, int(round(16 * self._dpi_scale)))
+        with dpg.font_registry():
+            for path in consolas_candidates:
+                if Path(path).exists():
+                    with dpg.font(path, font_size) as font:
+                        pass
+                    self._font_default = font
+                    break
 
-        status = ttk.Label(frame, textvariable=self.status_var, anchor=tk.W)
-        status.pack(fill=tk.X, pady=(8, 0))
+            for path in zh_candidates:
+                if Path(path).exists():
+                    with dpg.font(path, font_size) as font:
+                        pass
+                    self._font_zh = font
+                    break
 
-    def _set_busy(self, busy: bool) -> None:
-        self._busy = busy
-        state = tk.DISABLED if busy else tk.NORMAL
-        self.btn_refresh.configure(state=state)
-        self.btn_login_new.configure(state=state)
-        for btn in self._action_buttons:
-            btn.configure(state=state)
-        for widget in self._note_controls:
-            widget.configure(state=state)
-
-    def _set_status(self, text: str) -> None:
-        self.status_var.set(text)
+        if self._font_default is not None:
+            dpg.bind_font(self._font_default)
 
     def _load_notes(self) -> dict[str, str]:
         if not self._notes_file.exists():
@@ -97,23 +120,45 @@ class SteamSwitchGui:
             return {}
         if not isinstance(raw, dict):
             return {}
-        notes: dict[str, str] = {}
-        for k, v in raw.items():
-            if isinstance(k, str) and isinstance(v, str):
-                notes[k] = v
-        return notes
+        return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
 
     def _save_notes(self) -> None:
-        self._notes_file.write_text(
-            json.dumps(self._notes, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        self._notes_file.write_text(json.dumps(self._notes, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    @staticmethod
+    def _truncate(text: str, max_chars: int) -> str:
+        if len(text) <= max_chars:
+            return text
+        return text[: max_chars - 1] + "..."
+
+    @staticmethod
+    def _contains_cjk(text: str) -> bool:
+        return any("\u4e00" <= ch <= "\u9fff" for ch in text)
+
+    def _s(self, value: int) -> int:
+        return max(1, int(round(value * self._dpi_scale)))
+
+    def _set_status(self, text: str) -> None:
+        dpg.set_value(self._status_tag, text)
+        if self._contains_cjk(text) and self._font_zh is not None and dpg.does_item_exist(self._status_tag):
+            dpg.bind_item_font(self._status_tag, self._font_zh)
+        elif self._font_default is not None and dpg.does_item_exist(self._status_tag):
+            dpg.bind_item_font(self._status_tag, self._font_default)
+
+    def _set_busy(self, busy: bool) -> None:
+        self._busy = busy
+        for item in self._interactive_items:
+            if dpg.does_item_exist(item):
+                if busy:
+                    dpg.disable_item(item)
+                else:
+                    dpg.enable_item(item)
 
     def _load_users(self) -> None:
         users = list_users()
         self._events.put(("users", users))
 
-    def _run_async(self, fn, *args) -> None:
+    def _run_async(self, fn, *args: Any) -> None:
         if self._busy:
             return
         self._set_busy(True)
@@ -145,8 +190,11 @@ class SteamSwitchGui:
         self._set_status(f"Switching to {account} ({mode})...")
         self._run_async(self._op_select, account, mode)
 
-    def _save_note_for_account(self, account: str, note_var: tk.StringVar) -> None:
-        note = note_var.get().strip()
+    def _save_note_for_account(self, account: str) -> None:
+        input_tag = self._note_input_tags.get(account)
+        if not input_tag or not dpg.does_item_exist(input_tag):
+            return
+        note = str(dpg.get_value(input_tag)).strip()
         if note:
             self._notes[account] = note
         else:
@@ -154,83 +202,110 @@ class SteamSwitchGui:
         self._save_notes()
         self._set_status(f"Saved note for {account}")
 
-    @staticmethod
-    def _truncate(text: str, max_chars: int) -> str:
-        if len(text) <= max_chars:
-            return text
-        return text[: max_chars - 1] + "…"
+    def _normalize_note_text(self, value: Any) -> str:
+        if isinstance(value, str):
+            return value
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        return str(value)
+
+    def _on_note_changed(self, account: str, value: Any) -> None:
+        note = self._normalize_note_text(value).strip()
+        if note:
+            self._notes[account] = note
+        else:
+            self._notes.pop(account, None)
+        self._save_notes()
+        self._set_status(f"Auto-saved note for {account}")
+
+    def _show_error(self, message: str) -> None:
+        if dpg.does_item_exist(self._error_window_tag):
+            dpg.delete_item(self._error_window_tag)
+        with dpg.window(
+            label="Steam Switch Error",
+            tag=self._error_window_tag,
+            modal=True,
+            no_close=True,
+            no_resize=True,
+            width=560,
+            height=180,
+        ):
+            dpg.add_text(message, wrap=520)
+            dpg.add_spacer(height=10)
+            dpg.add_button(label="OK", width=100, callback=lambda: dpg.delete_item(self._error_window_tag))
 
     def _replace_users(self, users: list[SteamUser]) -> None:
         self._users = users
-        self._action_buttons.clear()
-        self._note_controls.clear()
-        for child in self.account_rows.winfo_children():
-            child.destroy()
-
-        # Column headers + fixed grid make all rows aligned.
-        headers = ("Account", "Persona", "Note", "Actions")
-        for col, text in enumerate(headers):
-            ttk.Label(self.account_rows, text=text).grid(row=0, column=col, sticky="w", padx=6, pady=(2, 4))
-        ttk.Separator(self.account_rows, orient=tk.HORIZONTAL).grid(
-            row=1,
-            column=0,
-            columnspan=4,
-            sticky="ew",
-            padx=4,
-            pady=(0, 4),
-        )
-        self.account_rows.grid_columnconfigure(0, weight=1, minsize=150)
-        self.account_rows.grid_columnconfigure(1, weight=1, minsize=140)
-        self.account_rows.grid_columnconfigure(2, weight=0, minsize=90)
-        self.account_rows.grid_columnconfigure(3, weight=0, minsize=280)
-
+        self._note_input_tags.clear()
+        self._interactive_items = [item for item in self._interactive_items if dpg.does_item_exist(item)]
+        if dpg.does_item_exist(self._table_container_tag):
+            dpg.delete_item(self._table_container_tag, children_only=True)
         if not users:
-            ttk.Label(self.account_rows, text="No remembered accounts.").grid(
-                row=2, column=0, columnspan=4, sticky="w", padx=6, pady=8
-            )
+            empty_text = dpg.add_text("No remembered accounts.", parent=self._table_container_tag)
+            if self._font_default is not None:
+                dpg.bind_item_font(empty_text, self._font_default)
             return
 
-        for idx, user in enumerate(users, start=2):
-            recent = " *" if user.most_recent else ""
-            account_text = self._truncate(user.account_name, 16) + recent
-            ttk.Label(self.account_rows, text=account_text).grid(
-                row=idx, column=0, sticky="w", padx=6, pady=3
+        for user in users:
+            card = dpg.add_child_window(
+                parent=self._table_container_tag,
+                autosize_x=True,
+                height=self._s(76),
+                border=True,
             )
-            ttk.Label(self.account_rows, text=user.persona_name).grid(
-                row=idx, column=1, sticky="w", padx=6, pady=3
-            )
+            with dpg.table(
+                parent=card,
+                header_row=False,
+                policy=dpg.mvTable_SizingFixedFit,
+                resizable=False,
+                borders_innerV=False,
+                borders_outerV=False,
+                borders_innerH=False,
+                borders_outerH=False,
+                no_host_extendX=False,
+            ):
+                dpg.add_table_column(init_width_or_weight=self._s(105))
+                dpg.add_table_column(init_width_or_weight=self._s(250))
+                dpg.add_table_column(init_width_or_weight=self._s(95))
+                dpg.add_table_column(init_width_or_weight=self._s(370))
 
-            note_var = tk.StringVar(value=self._notes.get(user.account_name, ""))
-            note_entry = ttk.Entry(self.account_rows, textvariable=note_var, width=8)
-            note_entry.grid(row=idx, column=2, sticky="w", padx=6, pady=3)
-            self._note_controls.append(note_entry)
+                with dpg.table_row():
+                    dpg.add_text("Account:")
+                    recent = " *" if user.most_recent else ""
+                    account_item = dpg.add_text(f"{self._truncate(user.account_name, 16)}{recent}")
+                    dpg.add_text("Persona:")
+                    persona_item = dpg.add_text(user.persona_name)
+                    if self._contains_cjk(user.account_name) and self._font_zh is not None:
+                        dpg.bind_item_font(account_item, self._font_zh)
+                    if self._contains_cjk(user.persona_name) and self._font_zh is not None:
+                        dpg.bind_item_font(persona_item, self._font_zh)
 
-            actions = ttk.Frame(self.account_rows)
-            actions.grid(row=idx, column=3, sticky="w", padx=6, pady=3)
-
-            btn_express = ttk.Button(
-                actions,
-                text="Login Express",
-                command=lambda account=user.account_name: self._on_account_login(account, "express"),
-            )
-            btn_express.pack(side=tk.LEFT)
-            self._action_buttons.append(btn_express)
-
-            btn_offline = ttk.Button(
-                actions,
-                text="Login Offline",
-                command=lambda account=user.account_name: self._on_account_login(account, "offline"),
-            )
-            btn_offline.pack(side=tk.LEFT, padx=(8, 0))
-            self._action_buttons.append(btn_offline)
-
-            note_btn = ttk.Button(
-                actions,
-                text="Save Note",
-                command=lambda account=user.account_name, var=note_var: self._save_note_for_account(account, var),
-            )
-            note_btn.pack(side=tk.LEFT, padx=(8, 0))
-            self._note_controls.append(note_btn)
+                with dpg.table_row():
+                    dpg.add_text("Note:")
+                    note_tag = f"note::{user.account_name}"
+                    self._note_input_tags[user.account_name] = note_tag
+                    note_input = dpg.add_input_text(
+                        tag=note_tag,
+                        default_value=self._notes.get(user.account_name, ""),
+                        width=self._s(96),
+                        callback=lambda _s, app_data, account=user.account_name: self._on_note_changed(account, app_data),
+                    )
+                    if self._font_zh is not None:
+                        dpg.bind_item_font(note_input, self._font_zh)
+                    self._interactive_items.append(note_input)
+                    dpg.add_text("Actions:")
+                    with dpg.group(horizontal=True):
+                        express_btn = dpg.add_button(
+                            label="Login Express",
+                            width=self._s(170),
+                            callback=lambda _s, _a, account=user.account_name: self._on_account_login(account, "express"),
+                        )
+                        offline_btn = dpg.add_button(
+                            label="Login Offline",
+                            width=self._s(170),
+                            callback=lambda _s, _a, account=user.account_name: self._on_account_login(account, "offline"),
+                        )
+                    self._interactive_items.extend([express_btn, offline_btn])
 
     def _poll_events(self) -> None:
         while True:
@@ -242,24 +317,28 @@ class SteamSwitchGui:
                 self._set_status(str(payload))
                 continue
             if evt == "users":
-                self._replace_users(payload)
+                self._replace_users(payload)  # type: ignore[arg-type]
                 continue
             if evt == "err":
                 self._set_busy(False)
                 self._set_status("Failed")
-                messagebox.showerror("Steam Switch", str(payload))
+                self._show_error(str(payload))
                 continue
             if evt == "ok":
                 self._set_busy(False)
                 self._set_status("Done")
-        self.root.after(100, self._poll_events)
+
+    def run(self) -> int:
+        while dpg.is_dearpygui_running():
+            self._poll_events()
+            dpg.render_dearpygui_frame()
+        dpg.destroy_context()
+        return 0
 
 
 def main() -> int:
-    root = tk.Tk()
-    SteamSwitchGui(root)
-    root.mainloop()
-    return 0
+    gui = SteamSwitchGui()
+    return gui.run()
 
 
 if __name__ == "__main__":

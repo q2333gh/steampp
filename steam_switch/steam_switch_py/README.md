@@ -1,6 +1,7 @@
 # steam-switch-py
 
-Windows-only Steam account switch CLI managed by `uv`.
+Windows-only Steam account switch tool managed by `uv`.
+GUI is implemented with DearPyGui.
 
 ## Commands
 - `steam-switch list`
