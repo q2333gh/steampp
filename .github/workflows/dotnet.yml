@@ -20,10 +20,10 @@ jobs:
         fetch-depth: 0
         submodules: false
 
-    - name: Setup .NET 6
+    - name: Setup .NET 8
       uses: actions/setup-dotnet@v3.0.2
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 8.0.x
 
     - name: Install required workloads (Windows)
       run: dotnet workload install maui-android android wasm-tools
