@@ -6,6 +6,12 @@ import sys
 from .switcher import SteamSwitchError, list_users, login_new, select_account
 
 
+def _safe_print(text: str) -> None:
+    # Some Windows terminals run with legacy code pages and cannot print all nicknames.
+    encoding = sys.stdout.encoding or "utf-8"
+    print(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
+
+
 def _add_common_mode(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--mode",
@@ -36,7 +42,7 @@ def _handle_list() -> int:
     users = list_users()
     for idx, user in enumerate(users, start=1):
         marker = "*" if user.most_recent else " "
-        print(f"{idx:>2}. [{marker}] {user.account_name} ({user.persona_name}) sid={user.steam_id64}")
+        _safe_print(f"{idx:>2}. [{marker}] {user.account_name} ({user.persona_name}) sid={user.steam_id64}")
     return 0
 
 
@@ -56,7 +62,7 @@ def _pick_account(account: str | None, index: int | None) -> str:
         return users[index - 1].account_name
     for idx, user in enumerate(users, start=1):
         marker = "*" if user.most_recent else " "
-        print(f"{idx:>2}. [{marker}] {user.account_name} ({user.persona_name})")
+        _safe_print(f"{idx:>2}. [{marker}] {user.account_name} ({user.persona_name})")
     raw = input("Choose account index: ").strip()
     if not raw.isdigit():
         raise SteamSwitchError("Invalid index input.")

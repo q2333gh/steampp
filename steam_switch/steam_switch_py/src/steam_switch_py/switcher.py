@@ -86,10 +86,10 @@ def get_loginusers_vdf() -> Path:
 
 def parse_loginusers(content: str) -> list[SteamUser]:
     # Match each top-level user block: "<steamid64>" { ... }
-    block_re = re.compile(r'"(?P<sid>\\d{17})"\\s*\\{(?P<body>.*?)\\}', re.S)
+    block_re = re.compile(r'"(?P<sid>\d{17})"\s*\{(?P<body>.*?)\}', re.S)
 
     def pick(body: str, key: str) -> str:
-        m = re.search(rf'"{re.escape(key)}"\\s*"(?P<v>.*?)"', body)
+        m = re.search(rf'"{re.escape(key)}"\s*"(?P<v>.*?)"', body)
         return m.group("v") if m else ""
 
     users: list[SteamUser] = []
