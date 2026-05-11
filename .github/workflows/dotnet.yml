@@ -11,22 +11,13 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        configuration: [ Release ]
-        os: [ windows-latest ]
-      # rid: [ fd-win-x64, win-x64, osx-x64, linux-x64,linux-arm64 ]
+    runs-on: windows-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-        # ac_switch_rust is not a valid submodule in this fork snapshot.
-        # Keep checkout robust for CI packaging.
         submodules: false
 
     - name: Setup .NET 6
@@ -34,20 +25,8 @@ jobs:
       with:
         dotnet-version: 6.0.x
 
-    # Non-Windows actions are intentionally disabled.
-    # - name: Install macOS SDK(macOS)
-    #   if: matrix.os == 'macOS-latest'
-    #   run: sudo dotnet workload install macos
-
-    # Install required workloads for solution restore/build.
     - name: Install required workloads (Windows)
-      if: matrix.os == 'windows-latest'
-      run: dotnet workload install android wasm-tools
-
-    # - name: Install Maui(Unix)
-    # #   if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'ubuntu-latest' }}
-    #   if: matrix.os == 'macOS-latest'
-    #   run: sudo dotnet workload install maui
+      run: dotnet workload install maui-android android wasm-tools
 
     - name: Verify dotnet info
       run: dotnet --info
@@ -61,117 +40,79 @@ jobs:
       run: New-Item -ItemType Directory -Force -Path .\references\NuGetPackages | Out-Null
 
     - name: dotnet restore SteamToolsV2+.sln
-      if: matrix.os == 'windows-latest'
       run: dotnet restore ./SteamToolsV2+.sln -p:CheckEolTargetFramework=false
-      
-    # - name: dotnet restore SteamToolsV2+.Linux.sln
-    #   if: matrix.os == 'ubuntu-latest'
-    #   run: dotnet restore ./SteamToolsV2+.Linux.slnf
-    #
-    # - name: dotnet restore SteamToolsV2+.Mac.sln
-    #   if: matrix.os == 'macOS-latest'
-    #   run: dotnet restore ./SteamToolsV2+.Mac.slnf
-      
-    - name: Build AvaloniaApp ${{ matrix.configuration }}
-      run: dotnet build ./src/ST.Client.Desktop.Avalonia.App/ST.Client.Avalonia.App.csproj -c "${{ matrix.configuration }}"
-      
+
+    - name: Build AvaloniaApp Release
+      run: dotnet build ./src/ST.Client.Desktop.Avalonia.App/ST.Client.Avalonia.App.csproj -c Release
+
     - name: Run CommonUnit
-      run: dotnet test ./tests/Common.UnitTest/Common.UnitTest.csproj -c "${{ matrix.configuration }}"
+      run: dotnet test ./tests/Common.UnitTest/Common.UnitTest.csproj -c Release
 
     - name: Run ST.Client.UnitTest
-      run: dotnet test ./tests/ST.Client.UnitTest/ST.Client.UnitTest.csproj -c "${{ matrix.configuration }}"
+      run: dotnet test ./tests/ST.Client.UnitTest/ST.Client.UnitTest.csproj -c Release
 
     - name: Run ST.Client.Desktop.UnitTest
-      run: dotnet test ./tests/ST.Client.Desktop.UnitTest/ST.Client.Desktop.UnitTest.csproj -c "${{ matrix.configuration }}"
-
-    # - name: dotnet ST.Client.Desktop.UnitTest test
-    #   if: matrix.os != 'windows-latest'
-    #   run: dotnet test ./tests/ST.Client.Desktop.UnitTest/ST.Client.Desktop.UnitTest.csproj
+      run: dotnet test ./tests/ST.Client.Desktop.UnitTest/ST.Client.Desktop.UnitTest.csproj -c Release
 
     - name: Get Short CommitId
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+      if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
       shell: pwsh
       run: Write-Output "GITHUB_SHA_SHORT=$(${env:GITHUB_SHA}.Substring(0,7))" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-    - name: Build ST.Tools.Publish Release
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
-      run: dotnet build ./src/ST.Tools.Publish/ST.Tools.Publish.csproj -c Release
-
-    - name: Build ${{ matrix.configuration }} & Package All
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+    - name: Publish Windows targets (secret-free)
+      if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
       shell: pwsh
-      run: .\packaging\build.ps1 -configuration ${{ matrix.configuration }}
+      run: .\packaging\build.ps1 -configuration Release
 
-    - name: All Package
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+    - name: Package publish outputs to zip
+      if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
       shell: pwsh
       run: |
-        $dev = $(if ('${{ matrix.configuration }}' -eq 'Debug') {"-dev"})
-        $pexe=".\src\ST.Tools.Publish\bin\Release\net6.0\p.exe"
-        & $pexe hp $dev
-        & $pexe sta $dev
-        & $pexe 7z -buildpackage ${env:GITHUB_SHA_SHORT} $dev
+        $base = ".\src\ST.Client.Desktop.Avalonia.App\bin\Release\Publish"
+        $out = "$base\ci-artifacts"
+        New-Item -ItemType Directory -Force -Path $out | Out-Null
 
-    - name: Upload fd-win-x64 App ${{ matrix.configuration }}
-      continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+        $items = @(
+          @{ Rid = "fd-win-x64"; Src = "$base\FrameworkDependent\fd-win-x64"; Name = "[Release]Steam++_win_x64_fde_${env:GITHUB_SHA_SHORT}.zip" },
+          @{ Rid = "win-x64";    Src = "$base\win-x64";                         Name = "[Release]Steam++_win_x64_${env:GITHUB_SHA_SHORT}.zip" },
+          @{ Rid = "fd-win-x86"; Src = "$base\FrameworkDependent\fd-win-x86"; Name = "[Release]Steam++_win_x86_fde_${env:GITHUB_SHA_SHORT}.zip" },
+          @{ Rid = "win-x86";    Src = "$base\win-x86";                         Name = "[Release]Steam++_win_x86_${env:GITHUB_SHA_SHORT}.zip" }
+        )
+
+        foreach ($item in $items) {
+          if (-not (Test-Path $item.Src)) {
+            throw "Missing publish output for $($item.Rid): $($item.Src)"
+          }
+
+          $zipPath = Join-Path $out $item.Name
+          if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+          Compress-Archive -Path "$($item.Src)\*" -DestinationPath $zipPath -CompressionLevel Optimal
+        }
+
+    - name: Upload win-x64 fde App Release
+      if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
       uses: actions/upload-artifact@v4
       with:
-        name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x64_fde_${{ env.GITHUB_SHA_SHORT }}'
-        path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_win_x64_fde_${{ env.GITHUB_SHA_SHORT }}.7z
+        name: '[Release]Steam++_win_x64_fde_${{ env.GITHUB_SHA_SHORT }}'
+        path: src\ST.Client.Desktop.Avalonia.App\bin\Release\Publish\ci-artifacts\[Release]Steam++_win_x64_fde_${{ env.GITHUB_SHA_SHORT }}.zip
 
-    - name: Upload win-x64 App ${{ matrix.configuration }}
-      continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+    - name: Upload win-x64 App Release
+      if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
       uses: actions/upload-artifact@v4
       with:
-        name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x64_${{ env.GITHUB_SHA_SHORT }}'
-        path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_win_x64_${{ env.GITHUB_SHA_SHORT }}.7z
+        name: '[Release]Steam++_win_x64_${{ env.GITHUB_SHA_SHORT }}'
+        path: src\ST.Client.Desktop.Avalonia.App\bin\Release\Publish\ci-artifacts\[Release]Steam++_win_x64_${{ env.GITHUB_SHA_SHORT }}.zip
 
-    - name: Upload fd-win-x86 App ${{ matrix.configuration }}
-      continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+    - name: Upload win-x86 fde App Release
+      if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
       uses: actions/upload-artifact@v4
       with:
-        name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x86_fde_${{ env.GITHUB_SHA_SHORT }}'
-        path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_win_x86_fde_${{ env.GITHUB_SHA_SHORT }}.7z
+        name: '[Release]Steam++_win_x86_fde_${{ env.GITHUB_SHA_SHORT }}'
+        path: src\ST.Client.Desktop.Avalonia.App\bin\Release\Publish\ci-artifacts\[Release]Steam++_win_x86_fde_${{ env.GITHUB_SHA_SHORT }}.zip
 
-    - name: Upload win-x86 App ${{ matrix.configuration }}
-      continue-on-error: true
-      if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
+    - name: Upload win-x86 App Release
+      if: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
       uses: actions/upload-artifact@v4
       with:
-        name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_win_x86_${{ env.GITHUB_SHA_SHORT }}'
-        path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_win_x86_${{ env.GITHUB_SHA_SHORT }}.7z
-
-    # - name: Upload macos-x64 App ${{ matrix.configuration }}
-    #   continue-on-error: true
-    #   if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_macos_x64_${{ env.GITHUB_SHA_SHORT }}'
-    #     path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_macos_x64_${{ env.GITHUB_SHA_SHORT }}.7z
-    #
-    # - name: Upload macos-arm64 App ${{ matrix.configuration }}
-    #   continue-on-error: true
-    #   if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_macos_arm64_${{ env.GITHUB_SHA_SHORT }}'
-    #     path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_macos_arm64_${{ env.GITHUB_SHA_SHORT }}.7z
-    #
-    # - name: Upload linux-x64 App ${{ matrix.configuration }}
-    #   continue-on-error: true
-    #   if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_linux_x64_${{ env.GITHUB_SHA_SHORT }}'
-    #     path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_linux_x64_${{ env.GITHUB_SHA_SHORT }}.tar.zst
-    #
-    # - name: Upload linux-arm64 App ${{ matrix.configuration }}
-    #   continue-on-error: true
-    #   if: ${{ matrix.os == 'windows-latest' && !startsWith(github.ref, 'refs/tags/') && github.event_name == 'push' }}
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: '[${{ matrix.configuration }}]${{ env.ProjectName }}_linux_arm64_${{ env.GITHUB_SHA_SHORT }}'
-    #     path: src\ST.Client.Desktop.Avalonia.App\bin\${{ matrix.configuration }}\Publish\${{ env.ProjectName }}_linux_arm64_${{ env.GITHUB_SHA_SHORT }}.tar.zst
+        name: '[Release]Steam++_win_x86_${{ env.GITHUB_SHA_SHORT }}'
+        path: src\ST.Client.Desktop.Avalonia.App\bin\Release\Publish\ci-artifacts\[Release]Steam++_win_x86_${{ env.GITHUB_SHA_SHORT }}.zip
