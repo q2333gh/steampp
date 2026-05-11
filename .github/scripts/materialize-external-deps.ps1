@@ -9,12 +9,12 @@ $PSNativeCommandUseErrorActionPreference = $false
 $pinnedRefs = @{
   "references/AvaloniaGif" = @{
     Type = "commit"
-    Ref = "e3d8985151d2cea5fc8de4ca5d459759a44bb0b7"
+    Ref = "5f5459e46fe3e2e427e313d40ee4943893759cfd"
     RequiredPath = "AvaloniaGif/AvaloniaGif.csproj"
   }
   "references/ArchiSteamFarm" = @{
-    Type = "branch"
-    Ref = "v5.2.7.7-library"
+    Type = "commit"
+    Ref = "a427f628e1b1d8b5ecfd66a16fd8ae3518934b53"
     RequiredPath = "ArchiSteamFarm.Library/ArchiSteamFarm.Library.csproj"
   }
   "references/Gameloop.Vdf" = @{
@@ -27,10 +27,51 @@ $pinnedRefs = @{
     Ref = "99ce54cac5cf5dc650bbca794dd1650df445d8bf"
     RequiredPath = "SAM.API/SAM.API.csproj"
   }
+  "references/Depressurizer" = @{
+    Type = "commit"
+    Ref = "7267ff264a14f6c9e8399365a9844e01887c4409"
+  }
+  "references/FluentAvalonia" = @{
+    Type = "commit"
+    Ref = "50c719a4b9620b400d0686693f3da69022043977"
+    RequiredPath = "FluentAvalonia/FluentAvalonia.csproj"
+  }
+  "references/MetroRadiance" = @{
+    Type = "commit"
+    Ref = "f6cbd3d421f298a06f866a21a18ed801eeae1056"
+  }
+  "references/SevenZipSharp" = @{
+    Type = "commit"
+    Ref = "705a75a79b903f2128596f80b36f4b3d0e4b3494"
+  }
+  "references/Steam4NET" = @{
+    Type = "commit"
+    Ref = "8dcff45ab4eb569173c48313ca241799a3b3aed5"
+    RequiredPath = "Steam4NET/Steam4NET.csproj"
+  }
+  "references/Titanium-Web-Proxy" = @{
+    Type = "commit"
+    Ref = "42a23d61a23c6a94da4df00aeef8b902b59a2201"
+    RequiredPath = "src/Titanium.Web.Proxy/Titanium.Web.Proxy.csproj"
+  }
   "references/WinAuth" = @{
-    Type = "tag"
-    Ref = "3.623.20209.21649"
+    Type = "commit"
+    Ref = "3942d43ce8df3046ed37156567ff8325c517110b"
     RequiredPath = "Authenticator/Authenticator.csproj"
+  }
+  "references/dotnet-packaging" = @{
+    Type = "commit"
+    Ref = "3f7bd3c61a00ce2c51f4f53f34d149b0ce5f8fdd"
+  }
+  "references/reactive" = @{
+    Type = "commit"
+    Ref = "d53a04fa440bac462affa00fb28cbd93af55fde4"
+    FullHistory = $true
+    RequiredPath = "Rx.NET/Source/src/System.Reactive/System.Reactive.csproj"
+  }
+  "references/sqlite-net" = @{
+    Type = "commit"
+    Ref = "b923e8ec43069974871f90dfc88711f188c96e79"
   }
 }
 
@@ -110,18 +151,10 @@ function Clone-PinnedRepo {
       Invoke-Git -Arguments $arguments
     }
     "commit" {
-      New-Item -ItemType Directory -Force -Path $Path | Out-Null
-      Invoke-Git -Arguments @("-C", $Path, "init")
-      Invoke-Git -Arguments @("-C", $Path, "config", "core.longpaths", "true")
-      Invoke-Git -Arguments @("-C", $Path, "remote", "add", "origin", $Url)
-      $fetchArguments = @("-C", $Path, "fetch")
-      $useFullHistory = $Pin.ContainsKey("FullHistory") -and $Pin.FullHistory
-      if (-not $useFullHistory) {
-        $fetchArguments += @("--depth", "1")
-      }
-      $fetchArguments += @("origin", $Pin.Ref)
-      Invoke-Git -Arguments $fetchArguments
-      Invoke-Git -Arguments @("-C", $Path, "checkout", "--detach", "FETCH_HEAD")
+      # For pinned commits, use a normal clone then checkout to avoid
+      # "unadvertised object" fetch failures on hosted providers.
+      Invoke-Git -Arguments @("-c", "core.longpaths=true", "clone", $Url, $Path)
+      Invoke-Git -Arguments @("-C", $Path, "checkout", "--detach", $Pin.Ref)
     }
     default {
       throw "Unsupported pin type '$($Pin.Type)' for '$Path'"
