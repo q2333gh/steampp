@@ -42,7 +42,7 @@ jobs:
     # Install required workloads for solution restore/build.
     - name: Install required workloads (Windows)
       if: matrix.os == 'windows-latest'
-      run: dotnet workload install android wasm-tools-net7
+      run: dotnet workload install android wasm-tools
 
     # - name: Install Maui(Unix)
     # #   if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'ubuntu-latest' }}
