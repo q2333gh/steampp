@@ -1,0 +1,14 @@
+# steam-switch-py
+
+Windows-only Steam account switch CLI managed by `uv`.
+
+## Commands
+- `steam-switch list`
+- `steam-switch login_new [--mode offline|express]`
+- `steam-switch select --account <account_name> [--mode offline|express]`
+
+## Run
+```bash
+cd steam_switch/steam_switch_py
+uv run steam-switch list
+```
