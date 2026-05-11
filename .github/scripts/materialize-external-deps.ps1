@@ -28,8 +28,8 @@ $pinnedRefs = @{
     RequiredPath = "SAM.API/SAM.API.csproj"
   }
   "references/WinAuth" = @{
-    Type = "commit"
-    Ref = "bb92aef4de1fca5af660fb4b4af47274d2ce9df0"
+    Type = "tag"
+    Ref = "3.623.20209.21649"
     RequiredPath = "Authenticator/Authenticator.csproj"
   }
 }
