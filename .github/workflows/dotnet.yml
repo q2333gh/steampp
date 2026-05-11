@@ -39,8 +39,10 @@ jobs:
     #   if: matrix.os == 'macOS-latest'
     #   run: sudo dotnet workload install macos
 
-    # All non-essential workloads are disabled to keep Windows CI independent
-    # from external/mobile tooling and credentials.
+    # Install required workloads for solution restore/build.
+    - name: Install required workloads (Windows)
+      if: matrix.os == 'windows-latest'
+      run: dotnet workload install android wasm-tools-net7
 
     # - name: Install Maui(Unix)
     # #   if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'ubuntu-latest' }}
