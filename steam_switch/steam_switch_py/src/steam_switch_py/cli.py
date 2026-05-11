@@ -3,7 +3,12 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .switcher import SteamSwitchError, list_users, login_new, select_account
+from .switcher import (
+    SteamSwitchError,
+    list_users,
+    perform_login_new,
+    perform_select_account,
+)
 
 
 def _safe_print(text: str) -> None:
@@ -47,7 +52,7 @@ def _handle_list() -> int:
 
 
 def _handle_login_new(mode: str) -> int:
-    login_new(mode)
+    perform_login_new(mode)
     print(f"OK: login_new mode={mode}")
     return 0
 
@@ -74,7 +79,7 @@ def _pick_account(account: str | None, index: int | None) -> str:
 
 def _handle_select(account: str | None, index: int | None, mode: str) -> int:
     selected_account = _pick_account(account, index)
-    user = select_account(selected_account, mode)
+    user = perform_select_account(selected_account, mode)
     print(f"OK: selected {user.account_name} mode={mode}")
     return 0
 

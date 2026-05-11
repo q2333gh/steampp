@@ -4,9 +4,10 @@ import os
 import re
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 try:
     import winreg
@@ -29,6 +30,10 @@ class SteamUser:
 
 class SteamSwitchError(RuntimeError):
     pass
+
+
+ProgressCb = Callable[[str], None]
+_OP_LOCK = threading.Lock()
 
 
 def ensure_windows() -> None:
@@ -157,3 +162,69 @@ def select_account(account_name: str, mode: str) -> SteamUser:
     set_current_user(found.account_name)
     start_steam(mode)
     return found
+
+
+def _validate_mode(mode: str) -> None:
+    if mode not in ("offline", "express"):
+        raise SteamSwitchError(f"Unsupported mode: {mode}")
+
+
+def _run_with_lock(fn: Callable[[], None]) -> None:
+    if not _OP_LOCK.acquire(blocking=False):
+        raise SteamSwitchError("Another switch/start operation is running.")
+    try:
+        fn()
+    finally:
+        _OP_LOCK.release()
+
+
+def perform_login_new(mode: str, progress: ProgressCb | None = None) -> None:
+    _validate_mode(mode)
+
+    def emit(step: str) -> None:
+        if progress is not None:
+            progress(step)
+
+    def run() -> None:
+        emit("Lock acquired")
+        emit("Stopping Steam processes")
+        kill_steam_processes()
+        emit("Clearing AutoLoginUser")
+        set_current_user("")
+        emit("Starting Steam")
+        start_steam(mode)
+        emit("Done")
+
+    _run_with_lock(run)
+
+
+def perform_select_account(account_name: str, mode: str, progress: ProgressCb | None = None) -> SteamUser:
+    if not account_name.strip():
+        raise SteamSwitchError("AccountName cannot be empty.")
+    _validate_mode(mode)
+    result: SteamUser | None = None
+
+    def emit(step: str) -> None:
+        if progress is not None:
+            progress(step)
+
+    def run() -> None:
+        nonlocal result
+        emit("Lock acquired")
+        emit("Resolving account")
+        users = list_users()
+        found = next((u for u in users if u.account_name == account_name), None)
+        if found is None:
+            raise SteamSwitchError(f"Account not found: {account_name}")
+        emit("Stopping Steam processes")
+        kill_steam_processes()
+        emit("Setting AutoLoginUser")
+        set_current_user(found.account_name)
+        emit("Starting Steam")
+        start_steam(mode)
+        emit("Done")
+        result = found
+
+    _run_with_lock(run)
+    assert result is not None
+    return result

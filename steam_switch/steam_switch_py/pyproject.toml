@@ -8,6 +8,7 @@ dependencies = []
 
 [project.scripts]
 steam-switch = "steam_switch_py.cli:main"
+steam-switch-gui = "steam_switch_py.gui:main"
 
 [build-system]
 requires = ["hatchling>=1.24.0"]
