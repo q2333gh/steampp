@@ -27,6 +27,11 @@ $pinnedRefs = @{
     Ref = "99ce54cac5cf5dc650bbca794dd1650df445d8bf"
     RequiredPath = "SAM.API/SAM.API.csproj"
   }
+  "references/WinAuth" = @{
+    Type = "commit"
+    Ref = "bb92aef4de1fca5af660fb4b4af47274d2ce9df0"
+    RequiredPath = "Authenticator/Authenticator.csproj"
+  }
 }
 
 ${fullHistoryPaths} = @(
@@ -34,7 +39,6 @@ ${fullHistoryPaths} = @(
 )
 
 $requiredRepoPaths = @{
-  "references/WinAuth" = "Authenticator/Authenticator.csproj"
   "references/FluentAvalonia" = "FluentAvalonia/FluentAvalonia.csproj"
   "references/reactive" = "Rx.NET/Source/src/System.Reactive/System.Reactive.csproj"
 }
