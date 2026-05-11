@@ -269,10 +269,12 @@ try {
     $requiredRepoPath = $requiredRepoPaths[$repo.path]
 
     if ($pin) {
-      $requiredPath = Join-Path $repo.path $pin.RequiredPath
-      if ((Test-Path $repo.path) -and -not (Test-Path $requiredPath)) {
-        Write-Host "Resetting $($repo.path) because '$requiredPath' is missing"
-        Remove-Item -Recurse -Force $repo.path
+      if ($pin.ContainsKey("RequiredPath")) {
+        $requiredPath = Join-Path $repo.path $pin.RequiredPath
+        if ((Test-Path $repo.path) -and -not (Test-Path $requiredPath)) {
+          Write-Host "Resetting $($repo.path) because '$requiredPath' is missing"
+          Remove-Item -Recurse -Force $repo.path
+        }
       }
     }
 
@@ -286,9 +288,11 @@ try {
 
       Sync-PinnedRepo -Url $repo.url -Path $repo.path -Pin $pin
 
-      $requiredPath = Join-Path $repo.path $pin.RequiredPath
-      if (-not (Test-Path $requiredPath)) {
-        throw "Pinned checkout for '$($repo.path)' is missing '$requiredPath'"
+      if ($pin.ContainsKey("RequiredPath")) {
+        $requiredPath = Join-Path $repo.path $pin.RequiredPath
+        if (-not (Test-Path $requiredPath)) {
+          throw "Pinned checkout for '$($repo.path)' is missing '$requiredPath'"
+        }
       }
       continue
     }
